@@ -1,0 +1,322 @@
+\documentclass[12pt]{article}%
+\usepackage{amsfonts}
+\usepackage{fancyhdr}
+\usepackage{comment}
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2.2cm, right=2.2cm]%
+{geometry}
+\usepackage{times}
+\usepackage{amsmath}
+\usepackage{changepage}
+\usepackage{amssymb}
+\usepackage{graphicx}%
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{color}
+
+\newenvironment{proof}[1][Proof]{\textbf{#1.} }{\ \rule{0.5em}{0.5em}}
+
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Z}{\mathbb{Z}}
+
+\begin{document}
+\definecolor{BrickRed}{rgb}{0.8, 0.25, 0.33}
+\definecolor{ForestGreen}{rgb}{0.0, 0.27, 0.13}
+\definecolor{purple}{rgb}{0.63, 0.36, 0.94}
+\lstdefinelanguage{Python}{
+	keywords={typeof, null, catch, switch, in, int, str, float, self},
+	keywordstyle=\color{ForestGreen}\bfseries,
+	ndkeywords={boolean, throw, import},
+	ndkeywords={return, class, if ,elif, endif, while, do, else, True, False , catch, def},
+	ndkeywordstyle=\color{BrickRed}\bfseries,
+	identifierstyle=\color{black},
+	sensitive=false,
+	comment=[l]{\#},
+	morecomment=[s]{/*}{*/},
+	commentstyle=\color{purple}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+	basicstyle=\ttfamily\small,
+}
+
+\title{Thymio and Python}
+\author{Alessandro zonta}
+\date{\today}
+\maketitle
+
+\section{Thymio and Python}
+	With this manual you will able to connect one Thymio to a computer and control it using Python script. 
+	
+	\begin{figure}[h]
+		\centering
+		\includegraphics[scale=0.07]{thymio.jpg}
+		\caption{Thymio robot}
+	\end{figure}
+	
+	To complete this manual you will need more or less 1 hour. With the python script provided with this manual you will control everything of the robot using only the keyboard.
+	
+
+\section{Connect Thymio to a computer}
+	To program your Thymio, you first need to download Aseba.
+	Aseba is available on Windows \cite{windows} , Linux \cite{linux} , Mac OS \cite{mac} and Android \cite{android}.\\
+	
+	Aseba provides \textit{asebamedulla}, a command-line utility that allows you to access an Aseba robot through D-Bus.
+	This permits the use of Aseba-enabled devices from third-party languages such as Python, Perl or any language that supports the D-Bus protocol. 
+	\textit{asebamedulla} has only been tested under Linux.
+	If you are using Windows or Mac OS you can only control Thymio II using Aseba Studio, using a Raspberry Pi or using Linux in a Virtual Machine.\\
+	
+	To control your Thymio using Python you need medulla.
+	Medulla is installed in your PC with Aseba package.
+	Open a terminal and connect medulla with your Thymio:
+	\begin{lstlisting}[language=bash]
+$ sudo asebamedulla "ser:name=Thymio-II"
+	\end{lstlisting}
+
+	If Thymio is connected to your PC by USB cable, in the terminal will appear this message:
+	\begin{lstlisting}[language=bash]
+$ Found Thymio-II on port /dev/ttyACM0
+	\end{lstlisting}
+	
+	Now Thymio is connected to your PC. This command recognize only \textbf{one} robot although there are more Thymio plugged in.
+	To disconnect Thymio you only need to type \textit{ctrl+c} in the Terminal. 
+	It is possible that the console returns some error. 
+	If the error is this:
+	\begin{lstlisting}[language=bash]
+$ pi@testthymio ~ $ asebamedulla "ser:name=Thymio-II"
+
+$ terminate called after throwing an instance of 
+'Dashel::DashelException'
+$ what():  Cannot bind socket to port, probably the 
+port is already in use. 
+
+$ Aborted 
+$ pi@testthymio ~ $
+	\end{lstlisting}
+	you will need to kill all the asebamedulla process before try again:
+	\begin{lstlisting}[language=bash]
+$ sudo killall -9 asebamedulla
+	\end{lstlisting}
+	
+\section{Send Python command to Thymio}
+	Now is possible to send command through Python, but you need another Terminal. 
+	You cannot use the same Terminal you used to connect with the Thymio because, if you write something in that Terminal, the connection will close.\\
+	If you want use only one terminal you can run the command in background:
+	\begin{lstlisting}[language=bash]
+$ (sudo asebamedulla "ser:name=Thymio-II" &)
+	\end{lstlisting}
+	
+	To execute some Python code you need only a script and know how to execute it:
+	\begin{lstlisting}[language=bash]
+$ sudo python test.py
+	\end{lstlisting}
+	In \ref{script} you find test.py. This is only an example script that needs also test.aesl to works. Later we will explain why you need also this file. You can also make your own script and execute it using this command.\\ 
+	
+	Inside Python script, you need to connect to \textbf{D-Bus} in order to communicate with the robot. 
+	This code connects you with Thymio and create the object that you will use to send a command. 
+	In this case the object is \textit{robot}
+	
+	\begin{lstlisting}[language=Python]
+parser = OptionParser()
+parser.add_option("-s", "--system", action="store_true", dest="system",
+ default=False, help="use the system bus instead of the session bus")
+
+(options, args) = parser.parse_args()
+
+dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+
+if options.system:
+bus = dbus.SystemBus()
+else:
+bus = dbus.SessionBus()
+
+# Create Aseba network
+robot = dbus.Interface(bus.get_object('ch.epfl.mobots.Aseba', '/'),
+ dbus_interface='ch.epfl.mobots.AsebaNetwork')
+
+# print in the terminal the name of each Aseba Node
+print robot.GetNodesList()
+	\end{lstlisting}
+	
+	You can use these three methods to control the robot:
+	\begin{itemize}
+		\item \textit{SetVariable}
+		\item \textit{GetVariable}
+		\item \textit{SendEventName}
+	\end{itemize}
+
+	
+	
+	\subsection{SetVariable}
+	
+		To move the robot, you have to use the \textit{SetVariable} method.
+		\textbf{motor.side.target} is used to specify the speed we want the motors to have.
+		The values range from -500 to 500.
+		A value of 500 approximately corresponds to a linear speed of 20 cm/s.
+		We use \textit{Time.sleep(1)} to stop the robot after 1 second.
+		
+		\begin{lstlisting}[language=Python]
+robot.SetVariable("thymio-II", "motor.left.target", [300])
+robot.SetVariable("thymio-II", "motor.right.target", [300])
+time.sleep(1)
+robot.SetVariable("thymio-II", "motor.left.target", [0])
+robot.SetVariable("thymio-II", "motor.right.target", [0])
+		\end{lstlisting}
+
+	\subsection{GetVariable}
+		To obtain the value from sensors exist the method called \textit{GetVariable}.
+		With this method, you can retrieve information from distance sensors, accelerometer, temperature sensor and microphone intensity.\\
+		You can find the specification of all these sensors in Thymio wiki \cite{thymiowiki}.\\
+		All the parameters inside GetVariable method are mandatory. The first parameter is the name of the robot that we are using (usually is thymio-II), second parameter is which information we want to know and the last two parameters are the handler for the result and if some errors are raised. 
+		
+		\begin{lstlisting}[language=Python]
+robot.GetVariable("thymio-II", "prox.horizontal", reply_handler=
+      get_variables_reply, error_handler=get_variablacces_error)
+def get_variables_reply(r):
+#inside r you can find the value from the selected sensor
+
+def get_variables_error(e):
+print 'error:'
+print str(e)
+#put here code to manage the error
+		\end{lstlisting}
+		
+		To retrieve information from other sensors you need only to change the name inside the method. 
+		This is all the possibility:
+		\begin{itemize}
+			\item prox.horizontal: distance sensors
+			\item acc: 3-axes accelerometer
+			\item prox.ground.delta: ambient light intensity at the ground,
+			\item prox.ground.reflected: amount of light received when the sensor emits infrared
+			\item prox.ground.ambiant: difference between reflected light and ambient light, linked to the distance and to the ground colour.
+			\item temperature: current temperature in tenths of a degree Celsius
+			\item mic.intensity: current microphone intensity
+		\end{itemize}
+
+	\subsection{SendEventName}
+		To control sounds and lights exist a method called \textit{SendEventName} but it is different from the previous methods. 
+		You cannot control these functions with a direct interaction with them. 
+		You have to write an \textit{aesl} file where you define the event and what action you want the robot will do. 
+		It is possible to write all the instruction that you want, also the one that moves the robot after one specific event.
+		To control the light and the sound that Thymio can emit, you can define three event:
+		
+		\begin{lstlisting}
+onevent SetColor
+call leds.top(event.args[0], event.args[1], event.args[2])
+call leds.bottom.left(event.args[0], event.args[1], event.args[2])
+call leds.bottom.right(event.args[0], event.args[1], event.args[2])
+
+onevent PlaySound
+call sound.system(event.args[0])
+
+onevent PlayFreq
+call sound.freq(event.args[0], event.args[1])
+		\end{lstlisting}
+
+		You can find the specification of all these calls in Thymio wiki webpage.
+		To use this event you have to load the \textit{aesl} file inside Thymio. 
+		This is not difficult, only one line of code:
+		
+		\begin{lstlisting}[language=Python]
+AESL_PATH = #insert here the path of the *.aesl file
+robot.LoadScripts(AESL_PATH, reply_handler=dbusReply,
+    error_handler=dbusError)
+
+def dbusReply():
+pass
+
+def dbusError(e):
+print 'error %s'
+print str(e)
+		\end{lstlisting}
+		
+		After load, you can call the event from python code like the previous method:
+		
+		\begin{lstlisting}[language=Python]
+robot.SendEventName('SetColor',[randint(0, 32), randint(0, 32),
+     randint(0, 32)], reply_handler=dbusReply, error_handler=dbusError)
+
+robot.SendEventName('PlaySound', [4], reply_handler=dbusReply, 
+     error_handler=dbusError)
+
+robot.SendEventName('PlayFreq', [700, 0], reply_handler=dbusReply, 
+     error_handler=dbusError)
+		\end{lstlisting}
+		
+		If you want to call the same event more than one time, the use of \textit{time.sleep()} is mandatory. 
+		This is necessary because you have to tell Thymio to wait until the end of the previous event before starts another one.
+
+
+\section{Python Example}
+
+	In Appendix \ref{script}, you can find a simple example of a python program. The command available in this script are:
+	\begin{itemize}
+		\item w: go forward
+		\item a: turn left
+		\item s: go backwards
+		\item d: go right
+		\item p: play sound (all the thymio sounds)
+		\item o: play sound (two hardcoded frequences)
+		\item i: show all the led
+	\end{itemize}
+	After every command, this example will print all the value from all the available sensors.
+	
+	\subsection{How it works?}
+		How you can see in Appendix \ref{script}, this script needs some library to work. The following libraries are the most important:
+		\begin{itemize}
+			\item dbus
+			\item dbus.mainloop.glib
+			\item gobject
+		\end{itemize}
+		There are another libraries that the script needs but are very common and everyone should know how they work. \\
+		We need the first two libraries (D-Bus is a message bus system, a simple way for applications to talk to one another.) to let the computer talk with the Thymio. The algorithm is one big loop running every 0.1 sec waiting for some input. We need \textit{gobject} to run the algorithm every 0.1 sec. \\\\
+		
+		\newpage
+		\begin{figure}[h]
+			\centering
+			\includegraphics[scale=0.7]{1.png}
+			\caption{Script}
+			\label{script1}
+		\end{figure}
+		
+		After executed the code, in your console there should be something like Figure  \ref{script1}. Now it is waiting for some input. You can type every letter you want (only w,a,s,d,p,o,i are working) and after pressed "ENTER" the robot will execute your command. In Figure \ref{script2} you can see the results after command "w" and command "a"
+		
+		\begin{figure}[h]
+			\centering
+			\includegraphics[scale=0.6]{2.png}
+			\caption{Script}
+			\label{script2}
+		\end{figure}
+		 
+  
+\begin{thebibliography}{9}
+
+	\bibitem{windows}
+	Windows Aseba Download,
+	\emph{\url{https://www.thymio.org/en:wininstall}}
+	
+	\bibitem{linux}
+	Linux Aseba Download,
+	\emph{\url{https://www.thymio.org/en:linuxinstall}}
+	
+	\bibitem{mac}
+	Mac OSX Aseba Download,
+	\emph{\url{https://www.thymio.org/en:macinstall}}
+	
+	\bibitem{android}
+	Android Aseba Download,
+	\emph{\url{https://www.thymio.org/en:androidinstall}}
+	
+	\bibitem{thymiowiki}
+	Thymio II wiki,
+	\emph{\url{https://www.thymio.org/en:thymioapi}}
+\newpage
+\end{thebibliography}
+
+\appendix
+
+	\section{Python Script}\label{script}
+	\lstinputlisting[language=Python]{test.py}
+	
+
+
+\end{document}

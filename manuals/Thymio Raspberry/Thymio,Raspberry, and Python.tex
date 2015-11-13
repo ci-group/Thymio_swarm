@@ -1,0 +1,389 @@
+\documentclass[12pt]{article}%
+\usepackage{amsfonts}
+\usepackage{fancyhdr}
+\usepackage{comment}
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2.2cm, right=2.2cm]%
+{geometry}
+\usepackage{times}
+\usepackage{amsmath}
+\usepackage{changepage}
+\usepackage{amssymb}
+\usepackage{graphicx}%
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{color}
+
+\newenvironment{proof}[1][Proof]{\textbf{#1.} }{\ \rule{0.5em}{0.5em}}
+
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Z}{\mathbb{Z}}
+
+\definecolor{BrickRed}{rgb}{0.8, 0.25, 0.33}
+\definecolor{ForestGreen(traditional)}{rgb}{0.0, 0.27, 0.13}
+\definecolor{purple}{rgb}{0.63, 0.36, 0.94}
+\lstdefinelanguage{Python}{
+	keywords={typeof, null, catch, switch, in, int, str, float, self},
+	keywordstyle=\color{ForestGreen}\bfseries,
+	ndkeywords={boolean, throw, import},
+	ndkeywords={return, class, if ,elif, endif, while, do, else, True, False , catch, def},
+	ndkeywordstyle=\color{BrickRed}\bfseries,
+	identifierstyle=\color{black},
+	sensitive=false,
+	comment=[l]{\#},
+	morecomment=[s]{/*}{*/},
+	commentstyle=\color{purple}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+}
+\lstdefinestyle{Bash}
+{	language=Bash,
+	backgroundcolor=\color{DarkGrey},
+	keywordstyle=\color{BlueViolet}\bfseries,
+	commentstyle=\color{Grey},
+	stringstyle=\color{Red},
+	showstringspaces=false,
+	basicstyle=\small\color{white},
+	numbers=none,
+	captionpos=b,
+	tabsize=4,
+	breaklines=true
+}
+
+
+\begin{document}
+
+\title{Thymio, Raspberry, and Python}
+\author{Alessandro zonta}
+\date{\today}
+\maketitle
+
+\section{Thymio, Raspberry, and Python}
+	This is what you need to follow this manual:
+	\begin{itemize}
+			\item Thymio II with cable
+			\item Raspberry Pi 2 
+			\item External battery with cable
+			\item Empty Micro SD
+			\item Dongle WI-FI or Ethernet Cable
+	\end{itemize}	
+	\begin{figure}[h]
+		\centering
+		\includegraphics[scale=0.07]{1.jpg}
+		\caption{Requested object}
+	\end{figure}		
+
+
+\section{Connect Thymio to a computer}
+	This wiki page aggregates the configurations needed to use Raspberry 2 to control Thymio II robot. 
+	First of all you need to install Raspberry Pi Operating System \cite{rasp}.
+	Remember the default login username and password:\\
+	username: pi\\
+	password: raspberry
+
+\section{Initial Configuration}
+	After that, launch raspberry configuration tool using sudo raspi-config (in case it is the first boot of the OS, the configuration tool will be shown automatically) and make the following configurations:
+	\begin{itemize}
+		\item Expand filesystem
+		\item Internationalization Options
+			\begin{itemize}
+				\item Locale en\_US.UTF-8 UTF-8
+				\item Time zone: Europe $>$ Amsterdam
+				\item Keyboard Layout: choose Generic 105-keys (intl) PC$>$Other$>$ \textit{choose your keyboard language}
+			\end{itemize}
+		\item Advanced Options
+			\begin{itemize}
+				\item Set the desired hostname (\textit{testthymio} in our case)
+				\item Enable SSH server
+				\item Disable the login shell accessibility over serial (by other words, select option "No" on the serial menu)
+			\end{itemize}
+		\item enable the camera
+	\end{itemize}
+
+
+	Then Reboot Raspberry Pi:
+	\begin{lstlisting}[language=Bash]
+$ sudo reboot.
+	\end{lstlisting}
+	
+	and delete unnecessary files:
+	\begin{lstlisting}[language=Bash]
+$ cd ~ && rm -rf python_games
+	\end{lstlisting}
+
+
+\section{SSH server Configuration}
+	On file /etc/ssh/sshd\_config make the following changes (using an editor like nano or vim. Do not forget to edit as super user - using sudo):
+	\begin{itemize}
+		\item Uncomment line regarding the use of public keys (AuthorizedKeysFile \%h/.ssh/authorized\_keys)
+		\item Uncomment line regarding GSSAPI Authentication (GSSAPIAuthentication no) in order to remove lag from ssh login
+		\item Add "UseDNS no" on the end of the file
+	\end{itemize}
+	
+\section{Network Configuration}
+	Disable IPv6 (Run sudo -i command first or you won't be able to run the following commands successfully. Run exit command in the end):
+	\begin{lstlisting}[language=Bash]
+$ echo "blacklist ipv6" >> /etc/modprobe.d/raspi-blacklist.conf
+$ sed -i "/::/s%^%#%g" /etc/hosts
+	\end{lstlisting}
+	You can test if IPv6 is enabled by running this command after reboot.
+	\begin{lstlisting}[language=Bash]
+$ netstat -tunlp |grep p6 |wc -l
+	\end{lstlisting}
+	If the output is other than 0, then IPv6 is enabled. (0 is the right output)\\
+	
+	Now you can connect your Raspberry to Internet (VU University Network) or to RobotLab Private Wireless Network. My suggestion is follow both section and save both configuration in two different files. When you need one configuration just rename the file and use it.\\
+	If Raspberry Pi doesn't have the WI-FI dongle, put it now.
+	
+	\subsection{Connect Raspberry to VU University Network}
+		Configure network interfaces by putting the following content in /etc/network/interfaces file if you want to connect Raspberry with VU University WI-FI (replacing the existent content):\\\\
+		\textit{auto lo\\
+			iface lo inet loopback\\
+			iface eth0 inet dhcp\\
+			allow-hotplug wlan0 \\
+			iface wlan0 inet manual \\
+			wpa-roam /etc/wpa\_supplicant/wpa\_supplicant.conf\\
+			iface default inet dhcp\\\\}
+		
+		
+		And put the following content in /etc/wpa\_supplicant/wpa\_supplicant.conf\\\\
+		\textit{ctrl\_interface=DIR=/var/run/wpa\_supplicant GROUP=netdev  \\
+			update\_config=1\\
+			network=\{ \\
+			identity="xxx@vu.nl" \\
+			password="xxxxxxxx" \\
+			eap=TTLS  \\
+			phase2="auth=PAP"  \\
+			priority=999  \\
+			disabled=0  \\
+			ssid="eduroam"  \\
+			scan\_ssid=0  \\
+			mode=0  \\
+			auth\_alg=OPEN  \\
+			proto=WPA2  \\
+			pairwise=CCMP TKIP  \\
+			key\_mgmt=WPA-EAP  \\
+			proactive\_key\_caching=1  \\
+		\}}\\\\
+
+	\subsection{Connect Raspberry to Private Wireless Network}
+		If you want to connect Raspberry in a private WI-FI network (with a static IP address) put the following content in /etc/network/interfaces. \\\
+		\textit{auto wlan0\\
+		auto lo\\
+		iface lo inet loopback  \\
+		iface eth0 inet dhcp\\
+		allow-hotplug wlan0   \\
+		iface wlan0 inet static  \\ 
+		address 192.168.xxx.xxx  \\
+		netmask 255.255.255.0   \\
+		gateway 192.168.yyy.yyy   \\
+		wpa-conf /etc/wpa\_supplicant/wpa\_supplicant.conf   \\
+		iface default inet dhcp\\}
+		
+			and this in /etc/wpa\_supplicant/wpa\_supplicant.conf	\\\\
+		\textit{ctrl\_interface=DIR=/var/run/wpa\_supplicant GROUP=netdev   \\
+		update\_config=1\\
+		network=\{   \\
+			ssid="ThymioNet"   \\
+			psk="172luckytulip75B"   \\
+			proto=RSN   \\
+			key\_mgmt=WPA-PSK   \\
+			pairwise=CCMP   \\
+			auth\_alg=OPEN   \\
+		\}}
+
+		Then replace the content of /etc/hosts with the following:
+		\begin{lstlisting}
+$ 127.0.0.1       localhost   
+$ 182.168.xxx.xxx    testthymio
+		\end{lstlisting}
+		Add the server name's IP to /etc/resolv.conf file
+		\begin{lstlisting}
+$ nameserver 192.168.yyy.yyy
+		\end{lstlisting}
+	
+	\subsection{Connect Raspeberry using Ethernet Cable}
+		To connect Raspberry to your computer using an Ethernet Cable you need only to modify one \textit{txt} file:
+		\begin{enumerate}
+			\item Ensure the Raspberry Pi is powered off, and remove the SD-Card.
+			\item Insert the SD-Card into a card reader and plug it into your laptop.
+			\item Find the drive and you should find several files on the Card
+			(note it a lot smaller than you’d expect since it is only the boot
+			section of the Card (the rest is hidden)).
+			\item Edit cmdline.txt and add the IP address in the end (be sure you don’t add any extra lines).
+			\begin{lstlisting}
+$ ip=192.168.xxx.xxx
+			\end{lstlisting}
+			Ensure you take note of this IP address (you will need it every time you want to directly connect to the Raspberry Pi).
+			\item Return the card to the Raspberry Pi. Attach the network cable attached to both the computer and Raspberry Pi and power up.
+			\item Set in your computer the right IP address inside Wired connection settings
+			\begin{lstlisting}
+$ 192.168.yyy.yyy
+			\end{lstlisting}
+			\item You will need to wait for your computer to finish detecting the network settings (you may see a small networking icon flashing in your system tray while it does, or open up the network settings to see when it has finished and has an IP address) – it can take around 1/2 minute.  Your computer may report the connection as  “limited or no connection” when connected to the Raspberry Pi in this way, this is normal as indicates it is a direct computer to computer connection rather than a standard network.
+		\end{enumerate}
+
+\section{Passwordless SSH Access}
+	It is possible to configure your Pi to allow your computer to access it without providing a password each time you try to connect.
+	To do this, you need to follow this page \cite{pwd}.\\
+	If you get an error saying \textit{-bash: /home/pi/.ssh/authorized\_keys: No such file or directory} this is because you do not have a ssh folder. Simply run:
+\begin{lstlisting}[language=Bash]
+$ mkdir ~/.ssh
+\end{lstlisting}
+
+
+\section{Installing Thymio's control program}
+	First of all Update and Upgrade everything present inside the Raspberry:
+	\begin{lstlisting}[language=Bash]
+$ sudo apt-get update
+$ sudo apt-get upgrade
+	\end{lstlisting}
+	In order to install D-Bus run the following command:
+	\begin{lstlisting}[language=Bash]
+$ sudo apt-get install dbus-*dev
+	\end{lstlisting}
+	Download Aseba program (check online for the latest version), by running the following command:
+	\begin{lstlisting}[language=Bash]
+$ wget https://aseba.wikidot.com/local--files/en:linuxinstall/
+aseba_1.3.3_armhf.deb
+	\end{lstlisting}
+	Install Aseba with the command:
+	\begin{lstlisting}[language=Bash]
+$ sudo dpkg -i aseba_1.3.3_armhf.deb
+	\end{lstlisting}
+	Some packages may be missing, they have to be installed with the following command:
+	\begin{lstlisting}[language=Bash]
+$ sudo apt-get -f install
+	\end{lstlisting}
+	
+\section{Controlling Thymio II robot}
+	At this point, you should be able to control the thymio through raspberry.
+	In order to be able to start D-Bus on raspberry with X11 you have to access the Raspberry with the following command (this works for Linux and Mac OS; on Windows you need to download and install Xming \cite{xming}:
+	\begin{lstlisting}[language=Bash]
+$ ssh -X pi@PI_ADDRESS
+	\end{lstlisting}
+	To start aseba in order to communicate with the thymio II you need to run the command:
+	\begin{lstlisting}[language=Bash]
+$ asebamedulla "ser:name=Thymio-II"
+	\end{lstlisting}
+	or
+	\begin{lstlisting}[language=Bash]
+$ (asebamedulla "ser:name=Thymio-II" &)
+	\end{lstlisting}
+	Transfer the code that you want to run to the Raspberry and run it.
+	The example needs to install also \textit{gobject} library:
+	\begin{lstlisting}[language=Bash]
+$ sudo apt-get install python-gobject
+	\end{lstlisting}
+	Now you can run the example:
+	\begin{lstlisting}[language=Bash]
+$ python test.py
+	\end{lstlisting}
+
+	\subsection{Control the camera with Python}
+		It is also possible control the camera installed on Raspberry with Python.
+		This code takes a picture and saves it in the Raspberry memory:
+		
+		\begin{lstlisting}[language=Python]
+import picamera	
+	
+camera = picamera.PiCamera()
+
+camera.start_preview()
+time.sleep(2)
+camera.capture('image.jpg')
+	\end{lstlisting}
+	If you press "f" after runs \textit{test.py} \cite{code} the camera will take a picture.
+	
+\section{Install OpenCV and Python}
+	You can follow this tutorial \cite{tut1} to install OpenCV.\\
+
+	\subsection{Installing Picamera}
+	We can install by utilizing pip:
+	\begin{lstlisting}
+pip "picamera[array]"
+	\end{lstlisting}	 
+	\textbf{IMPORTANT}: Notice how I specified \textit{picamera[array]} and not just ￼\textit{picamera}.\\
+	Why is this so important?\\
+	While the standard module provides methods to interface with the camera, we need the (optional) sub-module so that we can utilize OpenCV. Remember, when using Python bindings, OpenCV represents images as NumPy arrays — and the sub-module allows us to obtain NumPy arrays from the Raspberry Pi camera module.\\
+	Assuming that your install finished without error, you now have the module (with NumPy array support) installed.
+	
+	\subsection{Accessing a single image of your Raspberry Pi using Python and OpenCV}
+	Open up a new file, name it ￼ , and insert the following code:
+	\begin{lstlisting}[language=Python]
+# import the necessary packages
+from picamera.array import PiRGBArray
+from picamera import PiCamera
+import time
+import cv2
+
+# initialize the camera and grab a reference to the raw camera 
+# capture 
+camera = PiCamera()
+rawCapture = PiRGBArray(camera)
+
+# allow the camera to warmup
+time.sleep(0.1)
+
+# grab an image from the camera
+camera.capture(rawCapture, format="bgr")
+image = rawCapture.array
+
+# display the image on screen and wait for a keypress 
+cv2.imshow("Image", image)
+cv2.waitKey(0)
+	\end{lstlisting}
+
+\section{Run script on RaspberryPi boot}
+	To run a script after the boot of the Raspberry Pi you have to add this line at the end of the /etc/profile file.
+\begin{lstlisting}
+. /home/pi/ #name of the file.sh that you want to run
+ automatically after the boot
+\end{lstlisting}	 
+
+	In our case file.sh will contain the instruction to run asebamedulla and the python script.
+\begin{lstlisting}
+#!/bin/sh
+sleep 5
+if ps aux | grep "[a]sebamedulla" > /dev/null
+then
+echo "asebamedulla is already running"
+else
+(asebamedulla "ser:device=/dev/ttyACM0" &)
+python ********your python script********
+fi
+\end{lstlisting}
+\section{Question \& Answers}
+	In \cite{qa} is possible find useful information about use Raspberry with Thymio
+	  
+\begin{thebibliography}{9}
+
+	\bibitem{rasp}
+	Raspberry Pi Operating System download page,
+	\emph{\url{https://www.raspberrypi.org/documentation/installation/installing-images/README.md}}
+	
+	\bibitem{pwd}
+	Passwordless SSH Access,
+	\emph{\url{https://www.raspberrypi.org/documentation/remote-access/ssh/passwordless.md}}
+	
+	\bibitem{xming}
+	XMING download page,
+	\emph{\url{http://sourceforge.net/projects/xming/d}}
+	
+	
+	\bibitem{code}
+	Alessandro Zonta,
+	\emph{Thymio and Python}.
+	
+	\bibitem{tut1}
+	OpenCV installation page,
+	\emph{\url{Cédric Verstraeten.pdf}}
+	
+	\bibitem{qa}
+	Nicolas Question \& Answers,
+	\emph{\url{http://piratepad.net/nikopi2}}
+	
+	
+\end{thebibliography}
+
+\end{document}
